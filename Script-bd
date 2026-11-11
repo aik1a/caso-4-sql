@@ -1,0 +1,291 @@
+-- CASO 4: GESTION DE RED DE CLINICAS VETERINARIAS
+-- Aikia Riveros
+
+CREATE DATABASE veterinarias;
+USE veterinarias;
+
+-- 1. CREACION DE TABLAS
+
+CREATE TABLE clinica (
+    codigo_clinica INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    direccion VARCHAR(200) NOT NULL,
+    telefono VARCHAR(20) NOT NULL,
+    ciudad VARCHAR(100) NOT NULL,
+    PRIMARY KEY (codigo_clinica)
+) ENGINE=InnoDB;
+
+CREATE TABLE veterinario (
+    id_veterinario INT NOT NULL,
+    nombre_completo VARCHAR(150) NOT NULL,
+    especialidad VARCHAR(100) NOT NULL,
+    correo_electronico VARCHAR(150) NOT NULL,
+    telefono VARCHAR(20) NOT NULL,
+    codigo_clinica INT NOT NULL,
+    PRIMARY KEY (id_veterinario),
+    UNIQUE (correo_electronico),
+    CONSTRAINT fk_veterinario_clinica
+        FOREIGN KEY (codigo_clinica)
+        REFERENCES clinica (codigo_clinica)
+) ENGINE=InnoDB;
+
+CREATE TABLE dueno (
+    rut_dueno VARCHAR(15) NOT NULL,
+    nombre_completo VARCHAR(150) NOT NULL,
+    correo_electronico VARCHAR(150) NOT NULL,
+    telefono VARCHAR(20) NOT NULL,
+    direccion VARCHAR(200) NOT NULL,
+    PRIMARY KEY (rut_dueno)
+) ENGINE=InnoDB;
+
+CREATE TABLE paciente (
+    codigo_paciente INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    especie VARCHAR(50) NOT NULL,
+    raza VARCHAR(100) NOT NULL,
+    fecha_nacimiento DATE NOT NULL,
+    sexo VARCHAR(20) NOT NULL,
+    rut_dueno VARCHAR(15) NOT NULL,
+    PRIMARY KEY (codigo_paciente),
+    CONSTRAINT fk_paciente_dueno
+        FOREIGN KEY (rut_dueno)
+        REFERENCES dueno (rut_dueno)
+) ENGINE=InnoDB;
+
+CREATE TABLE consulta (
+    codigo_consulta INT NOT NULL,
+    fecha DATE NOT NULL,
+    hora TIME NOT NULL,
+    motivo VARCHAR(255) NOT NULL,
+    diagnostico VARCHAR(255) NOT NULL,
+    observaciones TEXT NULL,
+    codigo_paciente INT NOT NULL,
+    id_veterinario INT NOT NULL,
+    PRIMARY KEY (codigo_consulta),
+    CONSTRAINT fk_consulta_paciente
+        FOREIGN KEY (codigo_paciente)
+        REFERENCES paciente (codigo_paciente),
+    CONSTRAINT fk_consulta_veterinario
+        FOREIGN KEY (id_veterinario)
+        REFERENCES veterinario (id_veterinario)
+) ENGINE=InnoDB;
+
+CREATE TABLE tratamiento (
+    codigo_tratamiento INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT NOT NULL,
+    duracion_estimada INT NOT NULL,
+    PRIMARY KEY (codigo_tratamiento),
+    CONSTRAINT ck_tratamiento_duracion
+        CHECK (duracion_estimada > 0)
+) ENGINE=InnoDB;
+
+CREATE TABLE procedimiento (
+    codigo_procedimiento INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT NOT NULL,
+    costo DECIMAL(10,2) NOT NULL,
+    PRIMARY KEY (codigo_procedimiento),
+    CONSTRAINT ck_procedimiento_costo
+        CHECK (costo >= 0)
+) ENGINE=InnoDB;
+
+CREATE TABLE paciente_tratamiento (
+    id_asignacion INT NOT NULL,
+    fecha_inicio DATE NOT NULL,
+    fecha_termino DATE NULL,
+    dosis_indicacion VARCHAR(255) NOT NULL,
+    observaciones TEXT NULL,
+    codigo_paciente INT NOT NULL,
+    codigo_tratamiento INT NOT NULL,
+    PRIMARY KEY (id_asignacion),
+    CONSTRAINT fk_pt_paciente
+        FOREIGN KEY (codigo_paciente)
+        REFERENCES paciente (codigo_paciente),
+    CONSTRAINT fk_pt_tratamiento
+        FOREIGN KEY (codigo_tratamiento)
+        REFERENCES tratamiento (codigo_tratamiento),
+    CONSTRAINT ck_pt_fechas
+        CHECK (fecha_termino IS NULL OR fecha_termino >= fecha_inicio)
+) ENGINE=InnoDB;
+
+CREATE TABLE consulta_procedimiento (
+    id_realizacion INT NOT NULL,
+    fecha_realizacion DATE NOT NULL,
+    resultado VARCHAR(255) NOT NULL,
+    codigo_consulta INT NOT NULL,
+    codigo_procedimiento INT NOT NULL,
+    PRIMARY KEY (id_realizacion),
+    CONSTRAINT fk_cp_consulta
+        FOREIGN KEY (codigo_consulta)
+        REFERENCES consulta (codigo_consulta),
+    CONSTRAINT fk_cp_procedimiento
+        FOREIGN KEY (codigo_procedimiento)
+        REFERENCES procedimiento (codigo_procedimiento)
+) ENGINE=InnoDB;
+
+
+-- 2. INGRESO DE DATOS DE PRUEBA
+
+INSERT INTO clinica
+    (codigo_clinica, nombre, direccion, telefono, ciudad)
+VALUES
+    (1, 'Bigotes y Huellas', 'Av. Los Aromos 1450', '900000001', 'Santiago'),
+    (2, 'Refugio Animal del Sur', 'Calle Las Araucarias 320', '900000002', 'Temuco'),
+    (3, 'Patitas de la Costa', 'Paseo Mirador 870', '900000003', 'Valparaiso');
+
+INSERT INTO veterinario
+    (id_veterinario, nombre_completo, especialidad, correo_electronico,
+     telefono, codigo_clinica)
+VALUES
+    (1, 'Valentina Mardones', 'Medicina felina',
+     'valentina.mardones@example.com', '900000004', 1),
+    (2, 'Tomas Alarcon', 'Dermatologia veterinaria',
+     'tomas.alarcon@example.com', '900000005', 1),
+    (3, 'Josefa Cardenas', 'Traumatologia animal',
+     'josefa.cardenas@example.com', '900000006', 2);
+-- La clinica Patitas de la Costa queda sin veterinarios para probar el LEFT JOIN.
+
+INSERT INTO dueno
+    (rut_dueno, nombre_completo, correo_electronico, telefono, direccion)
+VALUES
+    ('11.111.111-1', 'Amalia Fuentes', 'amalia.fuentes@example.com',
+     '900000007', 'Pasaje Los Canelos 455, Santiago'),
+    ('22.222.222-2', 'Bruno Salvatierra', 'bruno.salvatierra@example.com',
+     '900000008', 'Calle Lago Azul 120, Temuco');
+
+INSERT INTO paciente
+    (codigo_paciente, nombre, especie, raza, fecha_nacimiento, sexo, rut_dueno)
+VALUES
+    (1, 'Mochi', 'Gato', 'Mestizo de pelo corto', '2022-03-10',
+     'Hembra', '11.111.111-1'),
+    (2, 'Don Bigotes', 'Gato', 'Mestizo de pelo largo', '2023-05-15',
+     'Macho', '11.111.111-1'),
+    (3, 'Chispa', 'Perro', 'Border Collie', '2021-08-20',
+     'Hembra', '22.222.222-2');
+
+INSERT INTO consulta
+    (codigo_consulta, fecha, hora, motivo, diagnostico, observaciones,
+     codigo_paciente, id_veterinario)
+VALUES
+    (1, '2026-10-05', '09:00:00',
+     'Limpieza dental y mal aliento',
+     'Acumulacion leve de sarro',
+     'Se recomienda revisar sus dientes nuevamente en seis meses.',
+     1, 1),
+    (2, '2026-10-06', '10:00:00',
+     'Vacunacion anual',
+     'Paciente en buen estado general',
+     'Mochi se mostro tranquila durante el control.',
+     2, 2),
+    (3, '2026-10-07', '11:00:00',
+     'Cojea despues de jugar en el parque',
+     'Posible lesion leve en una pata',
+     'Se solicita radiografia para descartar fractura.',
+     3, 3);
+
+INSERT INTO tratamiento
+    (codigo_tratamiento, nombre, descripcion, duracion_estimada)
+VALUES
+    (1, 'Reposo en casa',
+     'Evitar juegos bruscos y paseos largos durante algunos dias.',
+     7),
+    (2, 'Control veterinario',
+     'Revisar la evolucion del paciente en una nueva consulta.',
+     14);
+
+INSERT INTO procedimiento
+    (codigo_procedimiento, nombre, descripcion, costo)
+VALUES
+    (1, 'Evaluacion general',
+     'Revision de peso, temperatura y estado general.',
+     10000.00),
+    (2, 'Vacunacion anual',
+     'Aplicacion de vacuna correspondiente al calendario del paciente.',
+     15000.00),
+    (3, 'Radiografia de pata',
+     'Imagen para revisar posibles lesiones oseas.',
+     25000.00);
+
+INSERT INTO paciente_tratamiento
+    (id_asignacion, fecha_inicio, fecha_termino, dosis_indicacion,
+     observaciones, codigo_paciente, codigo_tratamiento)
+VALUES
+    (1, '2026-10-05', '2026-10-12',
+     'Mantener reposo durante una semana.',
+     'Evitar que salte desde lugares altos.',
+     1, 1),
+    (2, '2026-10-07', '2026-10-14',
+     'Reposo y paseos cortos con correa.',
+     'Observar si vuelve a cojear.',
+     3, 1),
+    (3, '2026-10-20', NULL,
+     'Asistir a un nuevo control dentro de dos semanas.',
+     'La fecha de termino aun no ha sido registrada.',
+     3, 2);
+
+INSERT INTO consulta_procedimiento
+    (id_realizacion, fecha_realizacion, resultado,
+     codigo_consulta, codigo_procedimiento)
+VALUES
+    (1, '2026-10-05', 'Se detecto sarro leve.', 1, 1),
+    (2, '2026-10-05', 'Vacuna aplicada sin complicaciones.', 1, 2),
+    (3, '2026-10-06', 'Control realizado correctamente.', 2, 1),
+    (4, '2026-10-07', 'No se observa fractura en la imagen.', 3, 3);
+
+COMMIT;
+
+
+-- 3. CINCO CONSULTAS DE LA PRESENTACION
+
+-- Consulta 1: ¿Que veterinarios tiene cada clinica?
+SELECT c.nombre AS clinica,
+       v.nombre_completo AS veterinario
+FROM clinica AS c
+LEFT JOIN veterinario AS v
+    ON c.codigo_clinica = v.codigo_clinica
+ORDER BY c.codigo_clinica, v.id_veterinario;
+
+-- Consulta 2: ¿Que pacientes tiene cada dueno?
+SELECT d.nombre_completo AS dueno,
+       p.nombre AS paciente
+FROM dueno AS d
+INNER JOIN paciente AS p
+    ON d.rut_dueno = p.rut_dueno
+ORDER BY d.rut_dueno, p.codigo_paciente;
+
+-- Consulta 3: ¿Quien atendio a cada paciente y en que fecha?
+SELECT c.codigo_consulta AS consulta,
+       c.fecha,
+       p.nombre AS paciente,
+       v.nombre_completo AS veterinario
+FROM consulta AS c
+INNER JOIN paciente AS p
+    ON c.codigo_paciente = p.codigo_paciente
+INNER JOIN veterinario AS v
+    ON c.id_veterinario = v.id_veterinario
+ORDER BY c.codigo_consulta;
+
+-- Consulta 4: ¿Que tratamientos tienen los pacientes y en que fechas?
+SELECT p.nombre AS paciente,
+       t.nombre AS tratamiento,
+       pt.fecha_inicio,
+       pt.fecha_termino
+FROM paciente_tratamiento AS pt
+INNER JOIN paciente AS p
+    ON pt.codigo_paciente = p.codigo_paciente
+INNER JOIN tratamiento AS t
+    ON pt.codigo_tratamiento = t.codigo_tratamiento
+ORDER BY pt.id_asignacion;
+
+-- Consulta 5: ¿Que procedimientos se hicieron en cada consulta?
+SELECT c.codigo_consulta AS consulta,
+       pr.nombre AS procedimiento,
+       cp.fecha_realizacion AS fecha,
+       cp.resultado
+FROM consulta_procedimiento AS cp
+INNER JOIN consulta AS c
+    ON cp.codigo_consulta = c.codigo_consulta
+INNER JOIN procedimiento AS pr
+    ON cp.codigo_procedimiento = pr.codigo_procedimiento
+ORDER BY cp.id_realizacion;
